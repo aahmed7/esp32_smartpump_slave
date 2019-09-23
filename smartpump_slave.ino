@@ -14,10 +14,8 @@ const esp_now_peer_info_t *masterNode = &master;
 #define waterPin 2
 
 float moisture_level = 0;
-int i;
 
-
-Struct Config{
+struct Config{
   int min_moisture_level;
   int pump_duration;
   //flags
@@ -25,7 +23,9 @@ Struct Config{
   bool working_whole_day;
   bool tank_empty;
   bool if_working_time;
-}
+};
+Config config;
+
 void InitESPNow() {
   WiFi.disconnect();
   if (esp_now_init() == ESP_OK) {
@@ -38,7 +38,7 @@ void InitESPNow() {
 }
 void configDeviceAP() {
   const char *SSID = "Slave_1";
-  bool result = WiFi.softAP(SSID, "Slave_1_Password", CHANNEL, 0);
+  bool result = WiFi.softAP(SSID, "Slave_1_Password", WIFI_CHANNEL, 0);
   if (!result) {
     Serial.println("AP Config failed.");
   } else {
@@ -78,7 +78,7 @@ void sendData() {
 void check_pump_empty() {
   if (digitalRead(waterPin) == LOW)
   {
-    water_empty = TRUE;
+    water_empty = true;
     sendData();
   }
   if (digitalRead(waterPin) == HIGH)
@@ -86,12 +86,12 @@ void check_pump_empty() {
     delay(600);
     if (digitalRead(waterPin) == LOW)
     {
-      water_empty = TRUE;
+      water_empty = true;
       sendData();
     }
     else
     {
-      water_empty = FALSE;
+      water_empty = false;
       sendData();
     }
   }
@@ -149,13 +149,11 @@ void setup() {
   esp_now_register_recv_cb(OnDataRecv);
   esp_now_register_send_cb(OnDataSent);
 
-  Config config;
   config.min_moisture_level = 0; //<=
   config.pump_duration = 2;
   config.working_whole_year = true;
   config.working_whole_day = true;
   config.if_working_time = true;
-
 }
 void loop() {
   check_pump_empty();
