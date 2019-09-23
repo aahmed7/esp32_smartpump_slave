@@ -3,6 +3,7 @@
 
 #define WIFI_CHANNEL 1
 uint8_t rcvd[5] = {0, 0, 0, 0, 0};
+uint8_t sent[2] ={0,0};
 int i = 0;
 uint8_t water_empty = 0;
 uint8_t masterDeviceMac[] = {0x30, 0xAE, 0xA4, 0x27, 0xA9, 0x48};
@@ -13,7 +14,7 @@ const esp_now_peer_info_t *masterNode = &master;
 #define MotorPin 1
 #define waterPin 2
 
-float moisture_level = 0;
+uint8_t moisture_level = 0;
 
 struct Config{
   int min_moisture_level;
@@ -70,10 +71,14 @@ void OnDataSent(const uint8_t *mac_addr, esp_now_send_status_t status) {
   //Serial.print(status == ESP_NOW_SEND_SUCCESS ? "Delivery Success" : "Delivery Fail");
 }
 void sendData() {
+  sent[0] = moisture_level;
+  sent[1] = water_empty;
   const uint8_t *peer_addr = master.peer_addr;
-  Serial.print("Sending: "); Serial.println(water_empty);
-  esp_err_t result = esp_now_send(peer_addr, &water_empty, sizeof(water_empty));
-  delay(100);
+  for (i = 0; i < 2; i++) {
+    Serial.print("Sending: "); Serial.println(sent[i]);
+    esp_err_t result = esp_now_send(peer_addr, &sent[i], sizeof(sent[i]));
+    delay(100);
+  }
 }
 void check_pump_empty() {
   if (digitalRead(waterPin) == LOW)
