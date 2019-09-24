@@ -10,9 +10,14 @@ uint8_t masterDeviceMac[] = {0x80, 0x7D, 0x3A, 0xC5, 0x23, 0xE8};
 esp_now_peer_info_t master;
 const esp_now_peer_info_t *masterNode = &master;
 
+unsigned long start;
+double fin = 600000.0;  //ms  (600k = 10 min)
+int k = 0;
+
+
 #define SensorPin 34
-#define MotorPin 1
-#define waterPin 2
+#define MotorPin 22
+#define waterPin 21
 
 uint8_t moisture_level;
 float moisture_level_int;
@@ -54,10 +59,10 @@ void OnDataRecv(const uint8_t *mac_addr, const uint8_t *data, int data_len) {
   Serial.print("Last Packet Recv from: "); Serial.println(macStr);
   Serial.print("Last Packet Recv Data: "); Serial.println(*data);
   Serial.println("");
-  rcvd[i] = *data;
-  i++;
-  if (i > 4)
-    i = 0;
+  rcvd[k] = *data;
+  k++;
+  if (k > 4)
+    k = 0;
   config.working_whole_year = rcvd[0];
   config.working_whole_day = rcvd[1];
   config.min_moisture_level = rcvd[2]; //<=
@@ -81,7 +86,7 @@ void sendData() {
     delay(100);
   }
 }
-void check_pump_empty() {
+void check_tank_empty() {
   if (digitalRead(waterPin) == LOW)
   {
     water_empty = true;
@@ -109,7 +114,7 @@ void pumpOn() {
   digitalWrite(MotorPin, HIGH);
   for (i = 0; i < config.pump_duration * 60; i++)
   {
-    check_pump_empty();
+    check_tank_empty();
     delay(1000);
   }
 
@@ -165,20 +170,37 @@ void setup() {
   config.working_whole_day = true;
   config.if_working_time = true;
 }
-void loop() {
-  //  check_pump_empty();
-  //  if (config.if_working_time && !water_empty) {
-  //    checkMoisture();
-  //    if (moisture_level < config.min_moisture_level)
-  //      pumpOn();
-  //    else
-  //      pumpOff();
-  //  }
-  //  for (i = 0; i < 60 * 60 ; i++)
-  //    delay(1000);
-  checkMoisture();
 
-  Serial.println(moisture_level);
-  delay(3000);
-  sendData();
+void loop() {
+  if(config.working_whole_day && config.working_whole_year)
+    config.if_working_time = true;
+  check_tank_empty();
+  if (config.if_working_time && !water_empty) {
+    checkMoisture();
+    if (moisture_level < config.min_moisture_level)
+      pumpOn();
+    else
+      pumpOff();
+  }
+  for (i = 0; i < 60 * 60 ; i++)
+  {
+    if (millis() - start > fin)  //store the settings after every 10s
+    {
+      start = millis();
+      checkMoisture();
+      Serial.println(moisture_level);
+      check_tank_empty();
+      sendData();
+    }
+    delay(1000);
+  }
+
+  if (millis() - start > fin)  //store the settings after every 10s
+  {
+    start = millis();
+    checkMoisture();
+    Serial.println(moisture_level);
+    check_tank_empty();
+    sendData();
+  }
 }
