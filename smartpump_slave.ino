@@ -3,20 +3,21 @@
 
 #define WIFI_CHANNEL 1
 uint8_t rcvd[5] = {0, 0, 0, 0, 0};
-uint8_t sent[2] ={0,0};
+uint8_t sent[2] = {0, 0};
 int i = 0;
 uint8_t water_empty = 0;
-uint8_t masterDeviceMac[] = {0x30, 0xAE, 0xA4, 0x27, 0xA9, 0x48};
+uint8_t masterDeviceMac[] = {0x80, 0x7D, 0x3A, 0xC5, 0x23, 0xE8};
 esp_now_peer_info_t master;
 const esp_now_peer_info_t *masterNode = &master;
 
-#define SensorPin A0
+#define SensorPin 34
 #define MotorPin 1
 #define waterPin 2
 
-uint8_t moisture_level = 0;
+uint8_t moisture_level;
+float moisture_level_int;
 
-struct Config{
+struct Config {
   int min_moisture_level;
   int pump_duration;
   //flags
@@ -120,13 +121,16 @@ void pumpOn() {
   digitalWrite(MotorPin, LOW);
 }
 void checkMoisture() {
-  for (int i = 0; i <= 100; i++)
+  for (int i = 0; i <= 50; i++)
   {
-    moisture_level = moisture_level + analogRead(SensorPin);
+    moisture_level_int = moisture_level_int + analogRead(SensorPin);
     delay(1);
   }
-  moisture_level = moisture_level / 100.0;
-  moisture_level = moisture_level / 1024 * 100;
+  moisture_level_int = moisture_level_int / 50.0;
+  moisture_level_int = moisture_level_int / 4096 * 100;
+  moisture_level = moisture_level_int;
+  if (moisture_level > 100)
+    moisture_level = 100;
 }
 
 
@@ -137,6 +141,7 @@ void setup() {
 
   //ESPNow Config
   WiFi.mode(WIFI_AP);
+  configDeviceAP();
   Serial.print("AP MAC: "); Serial.println(WiFi.softAPmacAddress());
   InitESPNow();
   memcpy( &master.peer_addr, &masterDeviceMac, 6 );
@@ -161,17 +166,19 @@ void setup() {
   config.if_working_time = true;
 }
 void loop() {
-  check_pump_empty();
-  if (config.if_working_time && !water_empty) {
-    checkMoisture();
-    if (moisture_level < config.min_moisture_level)
-      pumpOn();
-    else
-      pumpOff();
-  }
-  for (i = 0; i < 60 * 60 ; i++)
-    delay(1000);
+  //  check_pump_empty();
+  //  if (config.if_working_time && !water_empty) {
+  //    checkMoisture();
+  //    if (moisture_level < config.min_moisture_level)
+  //      pumpOn();
+  //    else
+  //      pumpOff();
+  //  }
+  //  for (i = 0; i < 60 * 60 ; i++)
+  //    delay(1000);
+  checkMoisture();
 
   Serial.println(moisture_level);
-  delay(30);
+  delay(3000);
+  sendData();
 }
