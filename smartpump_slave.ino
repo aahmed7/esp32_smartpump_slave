@@ -1,9 +1,15 @@
 #include <esp_now.h>
 #include <WiFi.h>
+#include <ESP8266WiFi.h>
+extern "C" {
+    #include <espnow.h>
+}
+
+
+
 
 #define WIFI_CHANNEL 1
 uint8_t rcvd[5] = {0, 0, 0, 0, 0};
-uint8_t sent[2] = {0, 0};
 int i = 0;
 uint8_t water_empty = 0;
 uint8_t masterDeviceMac[] = {0x80, 0x7D, 0x3A, 0xC5, 0x23, 0xE8};
@@ -14,13 +20,13 @@ unsigned long start;
 double fin = 600000.0;  //ms  (600k = 10 min)
 int k = 0;
 
+int pump_speed_percent = 50;  //enter the speed in percentage here
+int pump_speed = (pump_speed_percent/100 * 1024);
 
-#define SensorPin 34
-#define MotorPin 22
-#define waterPin 21
+#define MotorPin 4
+#define waterPin 5
 
 uint8_t moisture_level;
-float moisture_level_int;
 
 struct Config {
   int min_moisture_level;
@@ -61,31 +67,31 @@ void OnDataRecv(const uint8_t *mac_addr, const uint8_t *data, int data_len) {
   Serial.println("");
   rcvd[k] = *data;
   k++;
-  if (k > 4)
+  if (k > 5)
     k = 0;
   config.working_whole_year = rcvd[0];
   config.working_whole_day = rcvd[1];
   config.min_moisture_level = rcvd[2]; //<=
   config.pump_duration = rcvd[3];
   config.if_working_time = rcvd[4];
+  moisture_level = rcvd[5];
 
   if (config.working_whole_day && config.working_whole_year)
     config.if_working_time = 1;
+  for(i=0;i<6;i++)
+    masterDeviceMac[i]=mac_addr[i];
+
 }
 void OnDataSent(const uint8_t *mac_addr, esp_now_send_status_t status) {
   //Serial.print("\r\nLast Packet Send Status:\t");
   //Serial.print(status == ESP_NOW_SEND_SUCCESS ? "Delivery Success" : "Delivery Fail");
 }
 void sendData() {
-  sent[0] = moisture_level;
-  sent[1] = water_empty;
   const uint8_t *peer_addr = master.peer_addr;
-  for (i = 0; i < 2; i++) {
-    Serial.print("Sending: "); Serial.println(sent[i]);
-    esp_err_t result = esp_now_send(peer_addr, &sent[i], sizeof(sent[i]));
+    Serial.print("Sending: "); Serial.println(water_empty);
+    esp_err_t result = esp_now_send(peer_addr, &water_empty, sizeof(water_empty));
     delay(100);
   }
-}
 void check_tank_empty() {
   if (digitalRead(waterPin) == LOW)
   {
@@ -111,7 +117,7 @@ void pumpOff() {
   digitalWrite(MotorPin, LOW);
 }
 void pumpOn() {
-  digitalWrite(MotorPin, HIGH);
+  analogWrite(MotorPin, pump_speed);
   for (i = 0; i < config.pump_duration * 60; i++)
   {
     check_tank_empty();
@@ -124,18 +130,6 @@ void pumpOn() {
     return;
   }
   digitalWrite(MotorPin, LOW);
-}
-void checkMoisture() {
-  for (int i = 0; i <= 50; i++)
-  {
-    moisture_level_int = moisture_level_int + analogRead(SensorPin);
-    delay(1);
-  }
-  moisture_level_int = moisture_level_int / 50.0;
-  moisture_level_int = moisture_level_int / 4096 * 100;
-  moisture_level = moisture_level_int;
-  if (moisture_level > 100)
-    moisture_level = 100;
 }
 
 
@@ -176,7 +170,6 @@ void loop() {
     config.if_working_time = true;
   check_tank_empty();
   if (config.if_working_time && !water_empty) {
-    checkMoisture();
     if (moisture_level < config.min_moisture_level)
       pumpOn();
     else
@@ -187,7 +180,6 @@ void loop() {
     if (millis() - start > fin)  //store the settings after every 10s
     {
       start = millis();
-      checkMoisture();
       Serial.println(moisture_level);
       check_tank_empty();
       sendData();
@@ -198,7 +190,6 @@ void loop() {
   if (millis() - start > fin)  //store the settings after every 10s
   {
     start = millis();
-    checkMoisture();
     Serial.println(moisture_level);
     check_tank_empty();
     sendData();
