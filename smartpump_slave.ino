@@ -16,6 +16,7 @@ uint8_t masterDeviceMac[] = {0x80, 0x7D, 0x3A, 0xC5, 0x23, 0xE8};
 esp_now_peer_info_t master;
 const esp_now_peer_info_t *masterNode = &master;
 
+<<<<<<< HEAD
 unsigned long start;
 double fin = 600000.0;  //ms  (600k = 10 min)
 int k = 0;
@@ -25,6 +26,11 @@ int pump_speed = (pump_speed_percent/100 * 1024);
 
 #define MotorPin 4
 #define waterPin 5
+=======
+#define SensorPin 34
+#define MotorPin 1
+#define waterPin 2
+>>>>>>> parent of 969fdc9... Update smartpump_slave.ino
 
 uint8_t moisture_level;
 
@@ -65,10 +71,17 @@ void OnDataRecv(const uint8_t *mac_addr, const uint8_t *data, int data_len) {
   Serial.print("Last Packet Recv from: "); Serial.println(macStr);
   Serial.print("Last Packet Recv Data: "); Serial.println(*data);
   Serial.println("");
+<<<<<<< HEAD
   rcvd[k] = *data;
   k++;
   if (k > 5)
     k = 0;
+=======
+  rcvd[i] = *data;
+  i++;
+  if (i > 4)
+    i = 0;
+>>>>>>> parent of 969fdc9... Update smartpump_slave.ino
   config.working_whole_year = rcvd[0];
   config.working_whole_day = rcvd[1];
   config.min_moisture_level = rcvd[2]; //<=
@@ -92,7 +105,12 @@ void sendData() {
     esp_err_t result = esp_now_send(peer_addr, &water_empty, sizeof(water_empty));
     delay(100);
   }
+<<<<<<< HEAD
 void check_tank_empty() {
+=======
+}
+void check_pump_empty() {
+>>>>>>> parent of 969fdc9... Update smartpump_slave.ino
   if (digitalRead(waterPin) == LOW)
   {
     water_empty = true;
@@ -120,7 +138,7 @@ void pumpOn() {
   analogWrite(MotorPin, pump_speed);
   for (i = 0; i < config.pump_duration * 60; i++)
   {
-    check_tank_empty();
+    check_pump_empty();
     delay(1000);
   }
 
@@ -164,8 +182,8 @@ void setup() {
   config.working_whole_day = true;
   config.if_working_time = true;
 }
-
 void loop() {
+<<<<<<< HEAD
   if(config.working_whole_day && config.working_whole_year)
     config.if_working_time = true;
   check_tank_empty();
@@ -194,4 +212,21 @@ void loop() {
     check_tank_empty();
     sendData();
   }
+=======
+  //  check_pump_empty();
+  //  if (config.if_working_time && !water_empty) {
+  //    checkMoisture();
+  //    if (moisture_level < config.min_moisture_level)
+  //      pumpOn();
+  //    else
+  //      pumpOff();
+  //  }
+  //  for (i = 0; i < 60 * 60 ; i++)
+  //    delay(1000);
+  checkMoisture();
+
+  Serial.println(moisture_level);
+  delay(3000);
+  sendData();
+>>>>>>> parent of 969fdc9... Update smartpump_slave.ino
 }
