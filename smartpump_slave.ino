@@ -17,8 +17,8 @@ int k = 0;
 int pump_speed_percent = 50;  //enter the speed in percentage here
 int pump_speed = (pump_speed_percent / 100 * 1024);
 
-#define MotorPin 4
-#define waterPin 5
+#define MotorPin 22
+#define waterPin 21
 
 uint8_t moisture_level;
 
