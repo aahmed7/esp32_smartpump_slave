@@ -6,19 +6,24 @@
 uint8_t rcvd[5] = {0, 0, 0, 0, 0};
 int i = 0;
 uint8_t water_empty = 0;
-uint8_t masterDeviceMac[] = {0x80, 0x7D, 0x3A, 0xC5, 0x23, 0xE8};
+uint8_t masterDeviceMac[] = {0xB8, 0xD7, 0x63, 0x00, 0xFE, 0xEF};
 esp_now_peer_info_t master;
 const esp_now_peer_info_t *masterNode = &master;
 
+//Timing
 unsigned long start;
-double fin = 600000.0;  //ms  (600k = 10 min)
+double fin = 600000.0;  //in ms  (600k = 10 min)
 int k = 0;
 
 int pump_speed_percent = 50;  //enter the speed in percentage here
-int pump_speed = (pump_speed_percent / 100 * 1024);
+int pump_speed = (pump_speed_percent / 100 * 255);
 
-#define MotorPin 22
+#define MotorPin 16
 #define waterPin 21
+const int freq = 1000;
+const int MotorChannel = 0;
+const int resolution = 8;
+
 
 uint8_t moisture_level;
 
@@ -79,8 +84,8 @@ void OnDataRecv(const uint8_t *mac_addr, const uint8_t *data, int data_len) {
 
 }
 void OnDataSent(const uint8_t *mac_addr, esp_now_send_status_t status) {
-  //Serial.print("\r\nLast Packet Send Status:\t");
-  //Serial.print(status == ESP_NOW_SEND_SUCCESS ? "Delivery Success" : "Delivery Fail");
+  Serial.print("\r\nLast Packet Send Status:\t");
+  Serial.print(status == ESP_NOW_SEND_SUCCESS ? "Delivery Success" : "Delivery Fail");
 }
 void sendData() {
   const uint8_t *peer_addr = master.peer_addr;
@@ -111,13 +116,13 @@ void check_tank_empty() {
   }
 }
 void pumpOff() {
-  digitalWrite(MotorPin, LOW);
+  ledcWrite(MotorPin, 0);
 }
 void pumpOn() {
   ledcWrite(MotorPin, pump_speed);
   for (i = 0; i < config.pump_duration * 60; i++)
   {
-    check_pump_empty();
+    check_tank_empty();
     delay(1000);
   }
 
@@ -126,13 +131,14 @@ void pumpOn() {
     pumpOff();
     return;
   }
-  digitalWrite(MotorPin, LOW);
+  ledcWrite(MotorPin, 0);
 }
 
 
 void setup() {
   Serial.begin(9600);
-  ledcAttachPin(MotorPin, OUTPUT);
+  ledcSetup(MotorChannel, freq, resolution);
+  ledcAttachPin(MotorPin, MotorChannel);
   pinMode(waterPin, INPUT);
 
   //ESPNow Config
@@ -181,13 +187,5 @@ void loop() {
       sendData();
     }
     delay(1000);
-  }
-
-  if (millis() - start > fin)  //store the settings after every 10s
-  {
-    start = millis();
-    Serial.println(moisture_level);
-    check_tank_empty();
-    sendData();
   }
 }
